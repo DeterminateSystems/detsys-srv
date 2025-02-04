@@ -74,7 +74,6 @@ impl Policy for Affinity {
 impl Affinity {
     fn uris_preferring(uris: &[Uri], preferred: Option<&Uri>) -> AffinityUriIter {
         let preferred = preferred
-            .as_deref()
             .and_then(|preferred| uris.as_ref().iter().position(|uri| uri == preferred))
             .unwrap_or(0);
         AffinityUriIter {
@@ -163,7 +162,7 @@ impl Policy for Rfc2782 {
 
     fn order(&self, records: &[ParsedRecord]) -> Self::Ordering {
         let mut indices = (0..records.len()).collect::<Vec<_>>();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         indices.sort_by_cached_key(|&idx| {
             let (priority, weight) = (records[idx].priority, records[idx].weight);
             crate::record::sort_key(priority, weight, &mut rng)

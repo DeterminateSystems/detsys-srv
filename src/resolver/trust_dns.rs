@@ -5,16 +5,14 @@ use crate::SrvRecord;
 use async_trait::async_trait;
 use std::time::Instant;
 use trust_dns_resolver::{
-    error::ResolveError,
-    proto::{rr::rdata::SRV, DnsHandle},
-    AsyncResolver, ConnectionProvider, Name,
+    error::ResolveError, name_server::ConnectionProvider, proto::rr::rdata::SRV, AsyncResolver,
+    Name,
 };
 
 #[async_trait]
-impl<C, P> SrvResolver for AsyncResolver<C, P>
+impl<P> SrvResolver for AsyncResolver<P>
 where
-    C: DnsHandle,
-    P: ConnectionProvider<Conn = C>,
+    P: ConnectionProvider,
 {
     type Record = SRV;
     type Error = ResolveError;
@@ -55,8 +53,7 @@ mod tests {
 
     #[tokio::test]
     async fn srv_lookup() -> Result<(), ResolveError> {
-        let (records, _) = AsyncResolver::tokio_from_system_conf()
-            .await?
+        let (records, _) = AsyncResolver::tokio_from_system_conf()?
             .get_srv_records_unordered(crate::EXAMPLE_SRV)
             .await?;
         assert_ne!(records.len(), 0);
@@ -65,8 +62,7 @@ mod tests {
 
     #[tokio::test]
     async fn srv_lookup_ordered() -> Result<(), ResolveError> {
-        let (records, _) = AsyncResolver::tokio_from_system_conf()
-            .await?
+        let (records, _) = AsyncResolver::tokio_from_system_conf()?
             .get_srv_records(crate::EXAMPLE_SRV)
             .await?;
         assert_ne!(records.len(), 0);
@@ -76,7 +72,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_fresh_uris() -> Result<(), ResolveError> {
-        let resolver = AsyncResolver::tokio_from_system_conf().await?;
+        let resolver = AsyncResolver::tokio_from_system_conf()?;
         let client = crate::SrvClient::<_>::new_with_resolver(crate::EXAMPLE_SRV, resolver);
         let (uris, _) = client.get_fresh_uri_candidates().await.unwrap();
         assert_ne!(uris, Vec::<http::Uri>::new());
@@ -86,7 +82,6 @@ mod tests {
     #[tokio::test]
     async fn invalid_host() {
         AsyncResolver::tokio_from_system_conf()
-            .await
             .unwrap()
             .get_srv_records("_http._tcp.foobar.deshaw.com")
             .await
@@ -96,7 +91,6 @@ mod tests {
     #[tokio::test]
     async fn malformed_srv_name() {
         AsyncResolver::tokio_from_system_conf()
-            .await
             .unwrap()
             .get_srv_records("_http.foobar.deshaw.com")
             .await
@@ -106,7 +100,6 @@ mod tests {
     #[tokio::test]
     async fn very_malformed_srv_name() {
         AsyncResolver::tokio_from_system_conf()
-            .await
             .unwrap()
             .get_srv_records("  @#*^[_hsd flt.com")
             .await
@@ -116,7 +109,6 @@ mod tests {
     #[tokio::test]
     async fn srv_name_containing_nul_terminator() {
         AsyncResolver::tokio_from_system_conf()
-            .await
             .unwrap()
             .get_srv_records("_http.\0_tcp.foo.com")
             .await

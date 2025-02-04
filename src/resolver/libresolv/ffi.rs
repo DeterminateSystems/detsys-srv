@@ -26,7 +26,7 @@ pub struct ResolverState(Box<res_state>);
 
 impl ResolverState {
     pub fn init() -> Result<Self, ResolverError> {
-        let mut state = Self(Box::new(res_state::default()));
+        let mut state = Self(Box::default());
         let ret = unsafe { res_ninit(state.as_mut()) };
         if ret >= 0 {
             Ok(state)
