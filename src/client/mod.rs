@@ -51,6 +51,7 @@ pub enum Error<Lookup: Debug> {
 pub struct SrvClient<Resolver, Policy: policy::Policy = policy::Affinity> {
     srv: String,
     fallback: url::Url,
+    allowed_suffixes: Option<Vec<url::Host>>,
     resolver: Resolver,
     http_scheme: Scheme,
     path_prefix: String,
@@ -61,8 +62,12 @@ pub struct SrvClient<Resolver, Policy: policy::Policy = policy::Affinity> {
 impl<Resolver: Default, Policy: policy::Policy + Default> SrvClient<Resolver, Policy> {
     /// Creates a new client for communicating with services located by `srv_name`.
     ///
-    pub fn new(srv_name: impl ToString, fallback: url::Url) -> Self {
-        Self::new_with_resolver(srv_name, fallback, Resolver::default())
+    pub fn new(
+        srv_name: impl ToString,
+        fallback: url::Url,
+        allowed_suffixes: Option<Vec<url::Host>>,
+    ) -> Self {
+        Self::new_with_resolver(srv_name, fallback, allowed_suffixes, Resolver::default())
     }
 }
 
@@ -71,11 +76,13 @@ impl<Resolver, Policy: policy::Policy + Default> SrvClient<Resolver, Policy> {
     pub fn new_with_resolver(
         srv_name: impl ToString,
         fallback: url::Url,
+        allowed_suffixes: Option<Vec<url::Host>>,
         resolver: Resolver,
     ) -> Self {
         Self {
             srv: srv_name.to_string(),
             fallback,
+            allowed_suffixes,
             resolver,
             http_scheme: Scheme::HTTPS,
             path_prefix: String::from("/"),
@@ -88,7 +95,7 @@ impl<Resolver, Policy: policy::Policy + Default> SrvClient<Resolver, Policy> {
 impl<Resolver: SrvResolver, Policy: policy::Policy> SrvClient<Resolver, Policy> {
     /// Gets a fresh set of SRV records from a client's DNS resolver, returning
     /// them along with the time they're valid until.
-    pub async fn get_srv_records(
+    async fn get_srv_records(
         &self,
     ) -> Result<(Vec<Resolver::Record>, Instant), Error<Resolver::Error>> {
         self.resolver
@@ -108,10 +115,59 @@ impl<Resolver: SrvResolver, Policy: policy::Policy> SrvClient<Resolver, Policy> 
         let (records, valid_until) = self.get_srv_records().await?;
 
         // Create URIs from SRV records
-        let uris = records
+        let uri_iter = records
             .iter()
             .map(|record| self.parse_record(record))
-            .collect::<Result<Vec<Url>, _>>()?;
+            .filter_map(|parsed| match parsed {
+                Ok(record) => Some(record),
+                Err(e) => {
+                    tracing::trace!(%e, "Failed to parse an SRV record");
+                    None
+                }
+            });
+
+        let uris = if let Some(allowed_suffixes) = &self.allowed_suffixes {
+            use url::Host;
+
+            let mut allowed_ipv4 = Vec::<&std::net::Ipv4Addr>::new();
+            let mut allowed_ipv6 = Vec::<&std::net::Ipv6Addr>::new();
+            let mut allowed_domains = Vec::<&str>::new();
+
+            for suffix in allowed_suffixes {
+                match suffix {
+                    Host::Ipv4(ip) => {
+                        allowed_ipv4.push(ip);
+                    }
+                    Host::Ipv6(ip) => {
+                        allowed_ipv6.push(ip);
+                    }
+                    Host::Domain(d) => {
+                        allowed_domains.push(d);
+                    }
+                }
+            }
+
+            uri_iter
+                .filter(|record| {
+                    let allow = match record.host() {
+                    None => false,
+                    Some(Host::Ipv4(ip)) => allowed_ipv4.contains(&&ip),
+                    Some(Host::Ipv6(ip)) => allowed_ipv6.contains(&&ip),
+                    Some(Host::Domain(candidate)) => allowed_domains
+                        .iter()
+                        .any(|allowed| candidate.ends_with(allowed)),
+                };
+
+                if !allow {
+                    tracing::trace!(%record, "Rejecting SRV record because it is not allowed by the allowed suffixes");
+                }
+
+                allow
+        })
+                .collect::<Vec<Url>>()
+        } else {
+            uri_iter.collect::<Vec<Url>>()
+        };
 
         Ok((uris, valid_until))
     }
@@ -196,6 +252,7 @@ impl<Resolver, Policy: policy::Policy> SrvClient<Resolver, Policy> {
             policy: self.policy,
             srv: self.srv,
             fallback: self.fallback,
+            allowed_suffixes: self.allowed_suffixes,
             http_scheme: self.http_scheme,
             path_prefix: self.path_prefix,
         }
@@ -209,6 +266,7 @@ impl<Resolver, Policy: policy::Policy> SrvClient<Resolver, Policy> {
             resolver: self.resolver,
             srv: self.srv,
             fallback: self.fallback,
+            allowed_suffixes: self.allowed_suffixes,
             http_scheme: self.http_scheme,
             path_prefix: self.path_prefix,
         }

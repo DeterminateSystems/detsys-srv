@@ -76,6 +76,7 @@ mod tests {
         let client = crate::SrvClient::<_>::new_with_resolver(
             crate::EXAMPLE_SRV,
             crate::example_fallback(),
+            None,
             resolver,
         );
         let (uris, _) = client.get_fresh_uri_candidates().await.unwrap();
