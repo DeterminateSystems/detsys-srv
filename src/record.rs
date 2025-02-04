@@ -24,27 +24,6 @@ pub trait SrvRecord {
 
     /// Parses a SRV record into a URI with a given scheme (e.g. https) and
     /// `path_and_query` (used as a suffix in the URI).
-    ///
-    /// ```
-    /// # fn srv_record_parse() -> Result<(), http::Error> {
-    /// use srv_rs::{resolver::libresolv::LibResolvSrvRecord, SrvRecord};
-    /// let record = LibResolvSrvRecord {
-    ///     priority: 1,
-    ///     weight: 100,
-    ///     port: 8211,
-    ///     target: String::from("srv-client-rust.deshaw.org"),
-    /// };
-    /// assert_eq!(
-    ///     &record.parse("https", "/")?.to_string(),
-    ///     "https://srv-client-rust.deshaw.org:8211/"
-    /// );
-    /// assert_eq!(
-    ///     &record.parse("http", "/bar")?.to_string(),
-    ///     "http://srv-client-rust.deshaw.org:8211/bar"
-    /// );
-    /// # Ok(())
-    /// # }
-    /// ```
     fn parse(
         &self,
         scheme: impl TryInto<Scheme, Error = impl Into<http::Error>>,

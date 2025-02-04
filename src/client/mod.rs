@@ -79,11 +79,6 @@ impl Default for Execution {
 impl<Resolver: Default, Policy: policy::Policy + Default> SrvClient<Resolver, Policy> {
     /// Creates a new client for communicating with services located by `srv_name`.
     ///
-    /// # Examples
-    /// ```
-    /// use srv_rs::{SrvClient, resolver::libresolv::LibResolv};
-    /// let client = SrvClient::<LibResolv>::new("_http._tcp.example.com");
-    /// ```
     pub fn new(srv_name: impl ToString) -> Self {
         Self::new_with_resolver(srv_name, Resolver::default())
     }
@@ -158,30 +153,6 @@ impl<Resolver: SrvResolver, Policy: policy::Policy> SrvClient<Resolver, Policy> 
     /// operation will be performed on all targets concurrently, and results
     /// will be returned in the order they become available.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use srv_rs::EXAMPLE_SRV;
-    /// use srv_rs::{SrvClient, Error, Execution};
-    /// use srv_rs::resolver::libresolv::{LibResolv, LibResolvError};
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error<LibResolvError>> {
-    /// # let client = SrvClient::<LibResolv>::new(EXAMPLE_SRV);
-    /// let results_stream = client.execute_stream(Execution::Serial, |address| async move {
-    ///     Ok::<_, std::convert::Infallible>(address.to_string())
-    /// })
-    /// .await?;
-    /// // Do something with the stream, for example collect all results into a `Vec`:
-    /// use futures::stream::StreamExt;
-    /// let results: Vec<Result<_, _>> = results_stream.collect().await;
-    /// for result in results {
-    ///     assert!(result.is_ok());
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
     /// [`Policy`]: policy::Policy
     pub async fn execute_stream<'a, T, E, Fut>(
         &'a self,
@@ -233,31 +204,6 @@ impl<Resolver: SrvResolver, Policy: policy::Policy> SrvClient<Resolver, Policy> 
     /// successful result or the last error encountered if every execution of
     /// the operation was unsuccessful.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use srv_rs::EXAMPLE_SRV;
-    /// use srv_rs::{SrvClient, Error, Execution};
-    /// use srv_rs::resolver::libresolv::{LibResolv, LibResolvError};
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error<LibResolvError>> {
-    /// let client = SrvClient::<LibResolv>::new(EXAMPLE_SRV);
-    ///
-    /// let res = client.execute(Execution::Serial, |address| async move {
-    ///     Ok::<_, std::convert::Infallible>(address.to_string())
-    /// })
-    /// .await?;
-    /// assert!(res.is_ok());
-    ///
-    /// let res = client.execute(Execution::Concurrent, |address| async move {
-    ///     address.to_string().parse::<usize>()
-    /// })
-    /// .await?;
-    /// assert!(res.is_err());
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn execute<T, E, Fut>(
         &self,
         execution_mode: Execution,
@@ -312,14 +258,6 @@ impl<Resolver, Policy: policy::Policy> SrvClient<Resolver, Policy> {
     }
 
     /// Sets the policy of the client.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use srv_rs::EXAMPLE_SRV;
-    /// use srv_rs::{SrvClient, policy::Rfc2782, resolver::libresolv::LibResolv};
-    /// let client = SrvClient::<LibResolv>::new(EXAMPLE_SRV).policy(Rfc2782);
-    /// ```
     pub fn policy<P: policy::Policy>(self, policy: P) -> SrvClient<Resolver, P> {
         SrvClient {
             policy,

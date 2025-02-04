@@ -5,9 +5,6 @@ use async_trait::async_trait;
 use rand::Rng;
 use std::time::Instant;
 
-#[cfg(feature = "libresolv")]
-pub mod libresolv;
-
 #[cfg(feature = "trust-dns")]
 mod trust_dns;
 

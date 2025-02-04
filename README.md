@@ -1,4 +1,4 @@
-# srv-rs
+# srv-rs-upd
 
 [![Test Status](https://github.com/DeterminateSystems/srv-rs/workflows/Rust/badge.svg?event=push)](https://github.com/DeterminateSystems/srv-rs/actions)
 [![Crate](https://img.shields.io/crates/v/srv-rs-upd.svg)](https://crates.io/crates/srv-rs-upd)
@@ -28,18 +28,6 @@ same priority) should the first be unavailable.
 
 `srv-rs` handles the lookup and caching of SRV records as well as the ordered
 selection of targets to use for communication with SRV-located services.
-It presents this service in the following interface:
-
-```rust
-use srv_rs::{SrvClient, Execution, resolver::libresolv::LibResolv};
-let client = SrvClient::<LibResolv>::new("_http._tcp.example.com");
-client.execute(Execution::Serial, |address: http::Uri| async move {
-    // Communicate with the service at `address`
-    // `hyper` is used here as an example, but it is in no way required
-    hyper::Client::new().get(address).await
-})
-.await;
-```
 
 [`SrvClient::new`] creates a client (that should be reused to take advantage of
 caching) for communicating with the service located by `_http._tcp.example.com`.
@@ -57,22 +45,20 @@ used successfully. Both of these behaviors can be changed by implementing the
 
 The provided resolver backends are enabled by the following features:
 
-- `libresolv` (via [`LibResolv`])
 - `trust-dns` (via [`trust_dns_resolver::AsyncResolver`])
 
 [`SrvResolver`]: resolver::SrvResolver
 [`Policy`]: policy::Policy
-[`LibResolv`]: resolver::libresolv::LibResolv
 
 ## Usage
 
-Add srv-rs to your dependencies in `Cargo.toml`, enabling at least one of
+Add srv-rs-upd to your dependencies in `Cargo.toml`, enabling at least one of
 the DNS resolver backends (see [Alternative Resolvers](README.md#alternative-resolvers-and-target-selection-policies)).
 `libresolv` is enabled here as an example, but it is not required.
 
 ```toml
 [dependencies]
-srv-rs = { version = "0.2.0", features = ["libresolv"] }
+srv-rs-upd = { version = "0.2.0", features = ["libresolv"] }
 ```
 
 ## Contributing
@@ -84,8 +70,8 @@ srv-rs = { version = "0.2.0", features = ["libresolv"] }
 5. Clippy: `cargo clippy --all-features --tests -- -Dclippy::all`
 6. Bench: `cargo bench --all-features`
 7. If modifying crate-level docs (`src/lib.rs`) or `README.tpl`, update `README.md`:
-   1. `cargo install cargo-readme`
-   2. `cargo readme > README.md`
+    1. `cargo install cargo-readme`
+    2. `cargo readme > README.md`
 
 ## History
 
