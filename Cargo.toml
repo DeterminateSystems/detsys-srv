@@ -1,15 +1,19 @@
 [package]
-name = "srv-rs"
+name = "srv-rs-upd"
 version = "0.2.0"
-authors = ["Max Heller <max.a.heller@gmail.com>"]
-edition = "2018"
+authors = ["Determinate Systems, Inc. <hello@determinate.systems>"]
+edition = "2021"
 description = "Rust client for communicating with SRV-located services"
 readme = "README.md"
-homepage = "https://github.com/deshaw/srv-rs"
-repository = "https://github.com/deshaw/srv-rs"
+homepage = "https://github.com/DeterminateSystems/srv-rs"
+repository = "https://github.com/DeterminateSystems/srv-rs"
 license = "BSD-3-Clause"
 keywords = ["srv", "record", "dns", "resolve", "libresolv"]
 categories = ["network-programming"]
+
+[lib]
+doctest = false
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

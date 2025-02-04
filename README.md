@@ -1,7 +1,7 @@
 # srv-rs
 
-[![Test Status](https://github.com/deshaw/srv-rs/workflows/Rust/badge.svg?event=push)](https://github.com/deshaw/srv-rs/actions)
-[![Crate](https://img.shields.io/crates/v/srv-rs.svg)](https://crates.io/crates/srv-rs)
+[![Test Status](https://github.com/DeterminateSystems/srv-rs/workflows/Rust/badge.svg?event=push)](https://github.com/DeterminateSystems/srv-rs/actions)
+[![Crate](https://img.shields.io/crates/v/srv-rs-upd.svg)](https://crates.io/crates/srv-rs-upd)
 
 Rust client for communicating with services located by DNS SRV records.
 
@@ -84,15 +84,9 @@ srv-rs = { version = "0.2.0", features = ["libresolv"] }
 5. Clippy: `cargo clippy --all-features --tests -- -Dclippy::all`
 6. Bench: `cargo bench --all-features`
 7. If modifying crate-level docs (`src/lib.rs`) or `README.tpl`, update `README.md`:
-    1. `cargo install cargo-readme`
-    2. `cargo readme > README.md`
+   1. `cargo install cargo-readme`
+   2. `cargo readme > README.md`
 
 ## History
 
-This project was contributed back to the community by the [D. E. Shaw group](https://www.deshaw.com/).
-
-<p align="center">
-    <a href="https://www.deshaw.com">
-       <img src="https://www.deshaw.com/assets/logos/blue_logo_417x125.png" alt="D. E. Shaw Logo" height="75" >
-    </a>
-</p>
+Forked from https://github.com/deshaw/srv-rs/.

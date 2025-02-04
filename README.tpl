@@ -1,7 +1,7 @@
 # {{crate}}
 
-[![Test Status](https://github.com/deshaw/{{crate}}/workflows/Rust/badge.svg?event=push)](https://github.com/deshaw/{{crate}}/actions)
-[![Crate](https://img.shields.io/crates/v/{{crate}}.svg)](https://crates.io/crates/{{crate}})
+[![Test Status](https://github.com/DeterminateSystems/srv-rs/workflows/Rust/badge.svg?event=push)](https://github.com/DeterminateSystems/srv-rs/actions)
+[![Crate](https://img.shields.io/crates/v/srv-rs-upd.svg)](https://crates.io/crates/srv-rs-upd)
 
 {{readme}}
 
@@ -30,10 +30,4 @@ the DNS resolver backends (see [Alternative Resolvers](README.md#alternative-res
 
 ## History
 
-This project was contributed back to the community by the [D. E. Shaw group](https://www.deshaw.com/).
-
-<p align="center">
-    <a href="https://www.deshaw.com">
-       <img src="https://www.deshaw.com/assets/logos/black_logo_417x125.png" alt="D. E. Shaw Logo" height="75" >
-    </a>
-</p>
+Forked from https://github.com/deshaw/srv-rs/.
