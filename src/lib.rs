@@ -51,7 +51,7 @@ The provided resolver backends are enabled by the following features:
 */
 
 mod client;
-pub use client::{policy, Error, Execution, SrvClient};
+pub use client::{policy, Error, SrvClient};
 
 mod record;
 pub use record::SrvRecord;
@@ -59,4 +59,8 @@ pub use record::SrvRecord;
 pub mod resolver;
 
 #[doc(hidden)]
-pub const EXAMPLE_SRV: &str = "_http._tcp.srv-client-rust.deshaw.org";
+pub const EXAMPLE_SRV: &str = "_detsys_ids._tcp.install.determinate.systems.";
+#[doc(hidden)]
+pub fn example_fallback() -> url::Url {
+    url::Url::parse("https://install.determinate.systems.").unwrap()
+}

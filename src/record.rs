@@ -1,8 +1,10 @@
 //! SRV records.
 
-use http::uri::{PathAndQuery, Scheme, Uri};
+use std::{cmp::Reverse, fmt::Display};
+
+use http::uri::Scheme;
 use rand::Rng;
-use std::{cmp::Reverse, convert::TryInto, fmt::Display};
+use url::Url;
 
 /// Representation of types that contain the fields of a SRV record.
 pub trait SrvRecord {
@@ -22,20 +24,16 @@ pub trait SrvRecord {
     /// Gets a SRV record's weight.
     fn weight(&self) -> u16;
 
-    /// Parses a SRV record into a URI with a given scheme (e.g. https) and
-    /// `path_and_query` (used as a suffix in the URI).
-    fn parse(
-        &self,
-        scheme: impl TryInto<Scheme, Error = impl Into<http::Error>>,
-        path_and_query: impl TryInto<PathAndQuery, Error = impl Into<http::Error>>,
-    ) -> Result<Uri, http::Error> {
-        let scheme: Scheme = scheme.try_into().map_err(Into::into)?;
-        let path_and_query: PathAndQuery = path_and_query.try_into().map_err(Into::into)?;
-        Uri::builder()
-            .scheme(scheme)
-            .path_and_query(path_and_query)
-            .authority(format!("{}:{}", self.target(), self.port()).as_str())
-            .build()
+    /// Parses a SRV record into a URI with a given scheme (e.g. https)
+    fn parse(&self, scheme: Scheme) -> Result<Url, url::ParseError> {
+        let mut url = url::Url::parse("http://h")?;
+        url.set_scheme(scheme.as_str())
+            .expect("...Scheme supports HTTP and HTTPS, and that is it.");
+        url.set_host(Some(&self.target().to_string()))?;
+        url.set_port(Some(self.port()))
+            .map_err(|_| url::ParseError::SetHostOnCannotBeABaseUrl)?;
+
+        Ok(url)
     }
 
     /// Generates a key to sort a SRV record by priority and weight per RFC 2782.

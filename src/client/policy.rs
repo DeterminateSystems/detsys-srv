@@ -1,8 +1,8 @@
 use crate::{resolver::SrvResolver, Error, SrvClient, SrvRecord};
 use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
-use http::Uri;
 use std::sync::Arc;
+use url::Url;
 
 pub use super::Cache;
 
@@ -25,29 +25,29 @@ pub trait Policy: Sized {
     /// order a [`SrvClient`] should try using them to perform an operation.
     fn order(&self, items: &[Self::CacheItem]) -> Self::Ordering;
 
-    /// Converts a reference to a cached item into a reference to a [`Uri`].
-    fn cache_item_to_uri(item: &Self::CacheItem) -> &Uri;
+    /// Converts a reference to a cached item into a reference to a [`Url`].
+    fn cache_item_to_uri(item: &Self::CacheItem) -> &Url;
 
-    /// Makes any policy adjustments following a successful execution on `uri`.
+    /// Makes any policy adjustments following a successful execution on `url`.
     #[allow(unused_variables)]
-    fn note_success(&self, uri: &Uri) {}
+    fn note_success(&self, url: &Url) {}
 
     /// Makes any policy adjustments following a failed execution on `uri`.
     #[allow(unused_variables)]
-    fn note_failure(&self, uri: &Uri) {}
+    fn note_failure(&self, url: &Url) {}
 }
 
 /// Policy that selects targets based on past successes--if a target was used
 /// successfully in a past execution, it will be recommended first.
 #[derive(Default)]
 pub struct Affinity {
-    last_working_target: ArcSwapOption<Uri>,
+    last_working_target: ArcSwapOption<Url>,
 }
 
 #[async_trait]
 impl Policy for Affinity {
-    type CacheItem = Uri;
-    type Ordering = AffinityUriIter;
+    type CacheItem = Url;
+    type Ordering = AffinityUrlIter;
 
     async fn refresh_cache<Resolver: SrvResolver>(
         &self,
@@ -57,26 +57,26 @@ impl Policy for Affinity {
         Ok(Cache::new(uris, valid_until))
     }
 
-    fn order(&self, uris: &[Uri]) -> Self::Ordering {
+    fn order(&self, uris: &[Url]) -> Self::Ordering {
         let preferred = self.last_working_target.load();
         Affinity::uris_preferring(uris, preferred.as_deref())
     }
 
-    fn cache_item_to_uri(item: &Self::CacheItem) -> &Uri {
+    fn cache_item_to_uri(item: &Self::CacheItem) -> &Url {
         item
     }
 
-    fn note_success(&self, uri: &Uri) {
+    fn note_success(&self, uri: &Url) {
         self.last_working_target.store(Some(Arc::new(uri.clone())));
     }
 }
 
 impl Affinity {
-    fn uris_preferring(uris: &[Uri], preferred: Option<&Uri>) -> AffinityUriIter {
+    fn uris_preferring(uris: &[Url], preferred: Option<&Url>) -> AffinityUrlIter {
         let preferred = preferred
             .and_then(|preferred| uris.as_ref().iter().position(|uri| uri == preferred))
             .unwrap_or(0);
-        AffinityUriIter {
+        AffinityUrlIter {
             n: uris.len(),
             preferred,
             next: None,
@@ -84,19 +84,19 @@ impl Affinity {
     }
 }
 
-/// Iterator over [`Uri`]s based on affinity. See [`Affinity`].
-pub struct AffinityUriIter {
+/// Iterator over [`Url`]s based on affinity. See [`Affinity`].
+pub struct AffinityUrlIter {
     /// Number of uris in the cache.e
     n: usize,
-    /// Index of the URI to produce first (i.e. the preferred URI).
-    /// `0` if the first is preferred or there is no preferred URI at all.
+    /// Index of the URI to produce first (i.e. the preferred URL).
+    /// `0` if the first is preferred or there is no preferred URL at all.
     preferred: usize,
     /// Index of the next URI to be produced.
     /// If `None`, the preferred URI will be produced.
     next: Option<usize>,
 }
 
-impl Iterator for AffinityUriIter {
+impl Iterator for AffinityUrlIter {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -122,15 +122,15 @@ impl Iterator for AffinityUriIter {
 #[derive(Default)]
 pub struct Rfc2782;
 
-/// Representation of a SRV record with its target and port parsed into a [`Uri`].
+/// Representation of a SRV record with its target and port parsed into a [`Url`].
 pub struct ParsedRecord {
-    uri: Uri,
+    uri: Url,
     priority: u16,
     weight: u16,
 }
 
 impl ParsedRecord {
-    fn new<Record: SrvRecord>(record: &Record, uri: Uri) -> Self {
+    fn new<Record: SrvRecord>(record: &Record, uri: Url) -> Self {
         Self {
             uri,
             priority: record.priority(),
@@ -170,16 +170,16 @@ impl Policy for Rfc2782 {
         indices.into_iter()
     }
 
-    fn cache_item_to_uri(item: &Self::CacheItem) -> &Uri {
+    fn cache_item_to_uri(item: &Self::CacheItem) -> &Url {
         &item.uri
     }
 }
 
 #[test]
 fn affinity_uris_iter_order() {
-    let google: Uri = "https://google.com".parse().unwrap();
-    let amazon: Uri = "https://amazon.com".parse().unwrap();
-    let desco: Uri = "https://deshaw.com".parse().unwrap();
+    let google: Url = "https://google.com".parse().unwrap();
+    let amazon: Url = "https://amazon.com".parse().unwrap();
+    let desco: Url = "https://deshaw.com".parse().unwrap();
     let cache = vec![google.clone(), amazon.clone(), desco.clone()];
     let order = |preferred| {
         Affinity::uris_preferring(&cache, preferred)
@@ -194,11 +194,11 @@ fn affinity_uris_iter_order() {
 
 #[test]
 fn balance_uris_iter_order() {
-    // Clippy doesn't like that Uri has interior mutability and is being used
+    // Clippy doesn't like that Url has interior mutability and is being used
     // as a HashMap key but we aren't doing anything naughty in the test
     #[allow(clippy::mutable_key_type)]
     let mut priorities = std::collections::HashMap::new();
-    priorities.insert("https://google.com".parse::<Uri>().unwrap(), 2);
+    priorities.insert("https://google.com".parse::<Url>().unwrap(), 2);
     priorities.insert("https://cloudflare.com".parse().unwrap(), 2);
     priorities.insert("https://amazon.com".parse().unwrap(), 1);
     priorities.insert("https://deshaw.com".parse().unwrap(), 1);
