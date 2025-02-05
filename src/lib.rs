@@ -42,9 +42,6 @@ a target selection policy that maintains affinity for the last target it has
 used successfully. Both of these behaviors can be changed by implementing the
 [`SrvResolver`] and [`Policy`] traits, respectively.
 
-The provided resolver backends are enabled by the following features:
-
-- `trust-dns` (via [`trust_dns_resolver::AsyncResolver`])
 
 [`SrvResolver`]: resolver::SrvResolver
 [`Policy`]: policy::Policy

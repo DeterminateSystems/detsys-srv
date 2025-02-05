@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use rand::Rng;
 use std::time::Instant;
 
-#[cfg(feature = "trust-dns")]
 mod trust_dns;
 
 /// Represents the ability to act as a SRV resolver.

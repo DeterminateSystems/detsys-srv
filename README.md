@@ -43,32 +43,19 @@ a target selection policy that maintains affinity for the last target it has
 used successfully. Both of these behaviors can be changed by implementing the
 [`SrvResolver`] and [`Policy`] traits, respectively.
 
-The provided resolver backends are enabled by the following features:
-
-- `trust-dns` (via [`trust_dns_resolver::AsyncResolver`])
 
 [`SrvResolver`]: resolver::SrvResolver
 [`Policy`]: policy::Policy
 
-## Usage
-
-Add srv-rs-upd to your dependencies in `Cargo.toml`, enabling at least one of
-the DNS resolver backends (see [Alternative Resolvers](README.md#alternative-resolvers-and-target-selection-policies)).
-
-```toml
-[dependencies]
-srv-rs-upd = { version = "0.2.0", features = ["trust-dns"] }
-```
 
 ## Contributing
 
 1. Clone the repo
 2. Make some changes
-3. Test: `cargo test --all-features`
+3. Test: `cargo test`
 4. Format: `cargo fmt`
-5. Clippy: `cargo clippy --all-features --tests -- -Dclippy::all`
-6. Bench: `cargo bench --all-features`
-7. If modifying crate-level docs (`src/lib.rs`) or `README.tpl`, update `README.md`:
+5. Clippy: `cargo clippy --tests -- -Dclippy::all`
+6. If modifying crate-level docs (`src/lib.rs`) or `README.tpl`, update `README.md`:
     1. `cargo install cargo-readme`
     2. `cargo readme > README.md`
 

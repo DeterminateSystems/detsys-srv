@@ -13,15 +13,6 @@ categories = ["network-programming"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[package.metadata.docs.rs]
-all-features = true
-
-[features]
-default = ["log"]
-
-log = ["tracing"]
-trust-dns = ["trust-dns-resolver"]
-
 [dependencies]
 arc-swap = "1.0"
 async-trait = "0.1"
@@ -29,8 +20,8 @@ futures-util = "0.3"
 http = "1.2"
 rand = "0.9"
 thiserror = "2.0"
-tracing = { version = "0.1", optional = true }
-trust-dns-resolver = { version = "0.23", optional = true }
+tracing = { version = "0.1" }
+trust-dns-resolver = { version = "0.23" }
 url = "2.5.4"
 
 [dev-dependencies]
