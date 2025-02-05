@@ -54,11 +54,10 @@ The provided resolver backends are enabled by the following features:
 
 Add srv-rs-upd to your dependencies in `Cargo.toml`, enabling at least one of
 the DNS resolver backends (see [Alternative Resolvers](README.md#alternative-resolvers-and-target-selection-policies)).
-`libresolv` is enabled here as an example, but it is not required.
 
 ```toml
 [dependencies]
-srv-rs-upd = { version = "0.2.0", features = ["libresolv"] }
+srv-rs-upd = { version = "0.2.0", features = ["trust-dns"] }
 ```
 
 ## Contributing
