@@ -51,10 +51,17 @@ impl SrvRecord for SRV {
 mod tests {
     use super::*;
 
+    #[doc(hidden)]
+    pub const EXAMPLE_SRV: &str = "_detsys_ids._tcp.install.determinate.systems.";
+    #[doc(hidden)]
+    pub fn example_fallback() -> url::Url {
+        url::Url::parse("https://install.determinate.systems.").unwrap()
+    }
+
     #[tokio::test]
     async fn srv_lookup() -> Result<(), ResolveError> {
         let (records, _) = AsyncResolver::tokio_from_system_conf()?
-            .get_srv_records_unordered(crate::EXAMPLE_SRV)
+            .get_srv_records_unordered(EXAMPLE_SRV)
             .await?;
         assert_ne!(records.len(), 0);
         Ok(())
@@ -63,7 +70,7 @@ mod tests {
     #[tokio::test]
     async fn srv_lookup_ordered() -> Result<(), ResolveError> {
         let (records, _) = AsyncResolver::tokio_from_system_conf()?
-            .get_srv_records(crate::EXAMPLE_SRV)
+            .get_srv_records(EXAMPLE_SRV)
             .await?;
         assert_ne!(records.len(), 0);
         assert!((0..records.len() - 1).all(|i| records[i].priority() <= records[i + 1].priority()));
@@ -74,8 +81,8 @@ mod tests {
     async fn get_fresh_uris() -> Result<(), ResolveError> {
         let resolver = AsyncResolver::tokio_from_system_conf()?;
         let client = crate::SrvClient::<_>::new_with_resolver(
-            crate::EXAMPLE_SRV,
-            crate::example_fallback(),
+            EXAMPLE_SRV,
+            example_fallback(),
             None,
             resolver,
         );
