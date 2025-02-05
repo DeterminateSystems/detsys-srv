@@ -26,7 +26,16 @@ pub trait SrvRecord {
 
     /// Parses a SRV record into a URI with a given scheme (e.g. https)
     fn parse(&self, scheme: Scheme) -> Result<Url, url::ParseError> {
-        let mut url = url::Url::parse("http://h")?;
+        // We do this funny parsing of a bogus URL and then set the
+        // properties to get the benefits of parsing each field, since
+        // url::Url doesn't support constructing a URL from parts.
+        //
+        // If we were to format!() together the scheme, target, and port
+        // in one shot, the `target` could ostensibly contain
+        // `foo.com:123/bar`.
+        // Then the port would be appended to the end of that, which would
+        // not set the port.
+        let mut url = url::Url::parse("http://example.com")?;
         url.set_scheme(scheme.as_str())
             .expect("...Scheme supports HTTP and HTTPS, and that is it.");
         url.set_host(Some(&self.target().to_string()))?;
