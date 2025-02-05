@@ -5,10 +5,6 @@ use async_trait::async_trait;
 use rand::Rng;
 use std::time::Instant;
 
-#[cfg(feature = "libresolv")]
-pub mod libresolv;
-
-#[cfg(feature = "trust-dns")]
 mod trust_dns;
 
 /// Represents the ability to act as a SRV resolver.
@@ -36,7 +32,7 @@ pub trait SrvResolver: Send + Sync {
         srv: &str,
     ) -> Result<(Vec<Self::Record>, Instant), Self::Error> {
         let (mut records, valid_until) = self.get_srv_records_unordered(srv).await?;
-        Self::order_srv_records(&mut records, rand::thread_rng());
+        Self::order_srv_records(&mut records, rand::rng());
         Ok((records, valid_until))
     }
 

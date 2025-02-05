@@ -2,13 +2,9 @@
 
 use crate::{resolver::SrvResolver, SrvRecord};
 use arc_swap::ArcSwap;
-use futures_util::{
-    pin_mut,
-    stream::{self, Stream, StreamExt},
-    FutureExt,
-};
-use http::uri::{Scheme, Uri};
-use std::{fmt::Debug, future::Future, iter::FromIterator, sync::Arc, time::Instant};
+use http::uri::Scheme;
+use std::{fmt::Debug, future::Future, sync::Arc, time::Instant};
+use url::Url;
 
 mod cache;
 pub use cache::Cache;
@@ -23,8 +19,8 @@ pub enum Error<Lookup: Debug> {
     #[error("SRV lookup error")]
     Lookup(Lookup),
     /// SRV record parsing errors
-    #[error("building uri from SRV record: {0}")]
-    RecordParsing(#[from] http::Error),
+    #[error("building url from SRV record: {0}")]
+    RecordParsing(#[from] url::ParseError),
     /// Produced when there are no SRV targets for a client to use
     #[error("no SRV targets to use")]
     NoTargets,
@@ -54,6 +50,8 @@ pub enum Error<Lookup: Debug> {
 #[derive(Debug)]
 pub struct SrvClient<Resolver, Policy: policy::Policy = policy::Affinity> {
     srv: String,
+    fallback: url::Url,
+    allowed_suffixes: Option<Vec<url::Host>>,
     resolver: Resolver,
     http_scheme: Scheme,
     path_prefix: String,
@@ -61,39 +59,30 @@ pub struct SrvClient<Resolver, Policy: policy::Policy = policy::Affinity> {
     cache: ArcSwap<Cache<Policy::CacheItem>>,
 }
 
-/// Execution mode to use when performing an operation on SRV targets.
-pub enum Execution {
-    /// Operations are performed *serially* (i.e. one after the other).
-    Serial,
-    /// Operations are performed *concurrently* (i.e. all at once).
-    /// Note that this does not imply parallelism--no additional tasks are spawned.
-    Concurrent,
-}
-
-impl Default for Execution {
-    fn default() -> Self {
-        Self::Serial
-    }
-}
-
 impl<Resolver: Default, Policy: policy::Policy + Default> SrvClient<Resolver, Policy> {
     /// Creates a new client for communicating with services located by `srv_name`.
     ///
-    /// # Examples
-    /// ```
-    /// use srv_rs::{SrvClient, resolver::libresolv::LibResolv};
-    /// let client = SrvClient::<LibResolv>::new("_http._tcp.example.com");
-    /// ```
-    pub fn new(srv_name: impl ToString) -> Self {
-        Self::new_with_resolver(srv_name, Resolver::default())
+    pub fn new(
+        srv_name: impl ToString,
+        fallback: url::Url,
+        allowed_suffixes: Option<Vec<url::Host>>,
+    ) -> Self {
+        Self::new_with_resolver(srv_name, fallback, allowed_suffixes, Resolver::default())
     }
 }
 
 impl<Resolver, Policy: policy::Policy + Default> SrvClient<Resolver, Policy> {
     /// Creates a new client for communicating with services located by `srv_name`.
-    pub fn new_with_resolver(srv_name: impl ToString, resolver: Resolver) -> Self {
+    pub fn new_with_resolver(
+        srv_name: impl ToString,
+        fallback: url::Url,
+        allowed_suffixes: Option<Vec<url::Host>>,
+        resolver: Resolver,
+    ) -> Self {
         Self {
             srv: srv_name.to_string(),
+            fallback,
+            allowed_suffixes,
             resolver,
             http_scheme: Scheme::HTTPS,
             path_prefix: String::from("/"),
@@ -106,7 +95,7 @@ impl<Resolver, Policy: policy::Policy + Default> SrvClient<Resolver, Policy> {
 impl<Resolver: SrvResolver, Policy: policy::Policy> SrvClient<Resolver, Policy> {
     /// Gets a fresh set of SRV records from a client's DNS resolver, returning
     /// them along with the time they're valid until.
-    pub async fn get_srv_records(
+    async fn get_srv_records(
         &self,
     ) -> Result<(Vec<Resolver::Record>, Instant), Error<Resolver::Error>> {
         self.resolver
@@ -121,15 +110,67 @@ impl<Resolver: SrvResolver, Policy: policy::Policy> SrvClient<Resolver, Policy> 
     /// should expire.
     pub async fn get_fresh_uri_candidates(
         &self,
-    ) -> Result<(Vec<Uri>, Instant), Error<Resolver::Error>> {
+    ) -> Result<(Vec<Url>, Instant), Error<Resolver::Error>> {
         // Query DNS for the SRV record
         let (records, valid_until) = self.get_srv_records().await?;
 
         // Create URIs from SRV records
-        let uris = records
+        let uri_iter = records
             .iter()
             .map(|record| self.parse_record(record))
-            .collect::<Result<Vec<Uri>, _>>()?;
+            .filter_map(|parsed| match parsed {
+                Ok(record) => Some(record),
+                Err(e) => {
+                    tracing::trace!(%e, "Failed to parse an SRV record");
+                    None
+                }
+            });
+
+        let uris = if let Some(allowed_suffixes) = &self.allowed_suffixes {
+            use url::Host;
+
+            let mut allowed_ipv4 = Vec::<&std::net::Ipv4Addr>::new();
+            let mut allowed_ipv6 = Vec::<&std::net::Ipv6Addr>::new();
+            let mut allowed_domains = Vec::<&str>::new();
+
+            for suffix in allowed_suffixes {
+                match suffix {
+                    Host::Ipv4(ip) => {
+                        allowed_ipv4.push(ip);
+                    }
+                    Host::Ipv6(ip) => {
+                        allowed_ipv6.push(ip);
+                    }
+                    Host::Domain(d) => {
+                        allowed_domains.push(d);
+                    }
+                }
+            }
+
+            uri_iter
+                .filter(|record| {
+                    let allow = match record.host() {
+                        None => false,
+                        Some(Host::Ipv4(ip)) => allowed_ipv4.contains(&&ip),
+                        Some(Host::Ipv6(ip)) => allowed_ipv6.contains(&&ip),
+                        Some(Host::Domain(candidate)) => allowed_domains
+                            .iter()
+                            .any(|allowed| candidate.ends_with(allowed)),
+                    };
+
+                    if !allow {
+                        tracing::trace!(
+                            %record,
+                            "Rejecting SRV record because it is not allowed by the allowed suffixes"
+                        );
+                    }
+
+                    allow
+                })
+                .collect::<Vec<Url>>()
+        } else {
+            uri_iter.collect::<Vec<Url>>()
+        };
 
         Ok((uris, valid_until))
     }
@@ -150,143 +191,48 @@ impl<Resolver: SrvResolver, Policy: policy::Policy> SrvClient<Resolver, Policy> 
         }
     }
 
-    /// Performs an operation on all of a client's SRV targets, producing a
-    /// stream of results (one for each target). If the serial execution mode is
-    /// specified, the operation will be performed on each target in the order
-    /// determined by the current [`Policy`], and the results will be returned
-    /// in the same order. If the concurrent execution mode is specified, the
-    /// operation will be performed on all targets concurrently, and results
-    /// will be returned in the order they become available.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use srv_rs::EXAMPLE_SRV;
-    /// use srv_rs::{SrvClient, Error, Execution};
-    /// use srv_rs::resolver::libresolv::{LibResolv, LibResolvError};
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error<LibResolvError>> {
-    /// # let client = SrvClient::<LibResolv>::new(EXAMPLE_SRV);
-    /// let results_stream = client.execute_stream(Execution::Serial, |address| async move {
-    ///     Ok::<_, std::convert::Infallible>(address.to_string())
-    /// })
-    /// .await?;
-    /// // Do something with the stream, for example collect all results into a `Vec`:
-    /// use futures::stream::StreamExt;
-    /// let results: Vec<Result<_, _>> = results_stream.collect().await;
-    /// for result in results {
-    ///     assert!(result.is_ok());
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// [`Policy`]: policy::Policy
-    pub async fn execute_stream<'a, T, E, Fut>(
-        &'a self,
-        execution_mode: Execution,
-        func: impl FnMut(Uri) -> Fut + 'a,
-    ) -> Result<impl Stream<Item = Result<T, E>> + 'a, Error<Resolver::Error>>
-    where
-        E: std::error::Error,
-        Fut: Future<Output = Result<T, E>> + 'a,
-    {
-        let mut func = func;
-        let cache = self.get_valid_cache().await?;
-        let order = self.policy.order(cache.items());
-        let func = {
-            let cache = cache.clone();
-            move |idx| {
-                let candidate = Policy::cache_item_to_uri(&cache.items()[idx]);
-                func(candidate.to_owned()).map(move |res| (idx, res))
-            }
-        };
-        let results = match execution_mode {
-            Execution::Serial => stream::iter(order).then(func).left_stream(),
-            #[allow(clippy::from_iter_instead_of_collect)]
-            Execution::Concurrent => {
-                stream::FuturesUnordered::from_iter(order.map(func)).right_stream()
-            }
-        };
-        let results = results.map(move |(candidate_idx, result)| {
-            let candidate = Policy::cache_item_to_uri(&cache.items()[candidate_idx]);
-            match result {
-                Ok(res) => {
-                    #[cfg(feature = "log")]
-                    tracing::info!(URI = %candidate, "execution attempt succeeded");
-                    self.policy.note_success(candidate);
-                    Ok(res)
-                }
-                Err(err) => {
-                    #[cfg(feature = "log")]
-                    tracing::info!(URI = %candidate, error = %err, "execution attempt failed");
-                    self.policy.note_failure(candidate);
-                    Err(err)
-                }
-            }
-        });
-        Ok(results)
-    }
-
     /// Performs an operation on a client's SRV targets, producing the first
     /// successful result or the last error encountered if every execution of
     /// the operation was unsuccessful.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use srv_rs::EXAMPLE_SRV;
-    /// use srv_rs::{SrvClient, Error, Execution};
-    /// use srv_rs::resolver::libresolv::{LibResolv, LibResolvError};
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), Error<LibResolvError>> {
-    /// let client = SrvClient::<LibResolv>::new(EXAMPLE_SRV);
-    ///
-    /// let res = client.execute(Execution::Serial, |address| async move {
-    ///     Ok::<_, std::convert::Infallible>(address.to_string())
-    /// })
-    /// .await?;
-    /// assert!(res.is_ok());
-    ///
-    /// let res = client.execute(Execution::Concurrent, |address| async move {
-    ///     address.to_string().parse::<usize>()
-    /// })
-    /// .await?;
-    /// assert!(res.is_err());
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn execute<T, E, Fut>(
-        &self,
-        execution_mode: Execution,
-        func: impl FnMut(Uri) -> Fut,
-    ) -> Result<Result<T, E>, Error<Resolver::Error>>
+    pub async fn execute<T, E, Fut>(&self, func: impl FnMut(Url) -> Fut) -> Result<T, E>
     where
         E: std::error::Error,
         Fut: Future<Output = Result<T, E>>,
     {
-        let results = self.execute_stream(execution_mode, func).await?;
-        pin_mut!(results);
+        let mut func = func;
+        let cache = match self.get_valid_cache().await {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::trace!(%e, "No valid cache");
+                return func(self.fallback.clone()).await;
+            }
+        };
 
-        let mut last_error = None;
-        while let Some(result) = results.next().await {
-            match result {
-                Ok(res) => return Ok(Ok(res)),
-                Err(err) => last_error = Some(err),
+        let order = self.policy.order(cache.items());
+        let cache_items = order.map(|idx| &cache.items()[idx]);
+
+        for cache_item in cache_items.into_iter() {
+            let candidate = Policy::cache_item_to_uri(cache_item);
+
+            match func(candidate.to_owned()).await {
+                Ok(res) => {
+                    tracing::trace!(URI = %candidate, "execution attempt succeeded");
+                    self.policy.note_success(candidate);
+                    return Ok(res);
+                }
+                Err(err) => {
+                    tracing::trace!(URI = %candidate, error = %err, "execution attempt failed");
+                    self.policy.note_failure(candidate);
+                }
             }
         }
 
-        if let Some(err) = last_error {
-            Ok(Err(err))
-        } else {
-            Err(Error::NoTargets)
-        }
+        func(self.fallback.clone()).await
     }
 
-    fn parse_record(&self, record: &Resolver::Record) -> Result<Uri, http::Error> {
-        record.parse(self.http_scheme.clone(), self.path_prefix.as_str())
+    fn parse_record(&self, record: &Resolver::Record) -> Result<Url, url::ParseError> {
+        record.parse(self.http_scheme.clone())
     }
 }
 
@@ -306,26 +252,22 @@ impl<Resolver, Policy: policy::Policy> SrvClient<Resolver, Policy> {
             cache: Default::default(),
             policy: self.policy,
             srv: self.srv,
+            fallback: self.fallback,
+            allowed_suffixes: self.allowed_suffixes,
             http_scheme: self.http_scheme,
             path_prefix: self.path_prefix,
         }
     }
 
     /// Sets the policy of the client.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use srv_rs::EXAMPLE_SRV;
-    /// use srv_rs::{SrvClient, policy::Rfc2782, resolver::libresolv::LibResolv};
-    /// let client = SrvClient::<LibResolv>::new(EXAMPLE_SRV).policy(Rfc2782);
-    /// ```
     pub fn policy<P: policy::Policy>(self, policy: P) -> SrvClient<Resolver, P> {
         SrvClient {
             policy,
             cache: Default::default(),
             resolver: self.resolver,
             srv: self.srv,
+            fallback: self.fallback,
+            allowed_suffixes: self.allowed_suffixes,
             http_scheme: self.http_scheme,
             path_prefix: self.path_prefix,
         }
