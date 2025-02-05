@@ -1,7 +1,7 @@
-# srv-rs-upd
+# detsys-srv
 
-[![Test Status](https://github.com/DeterminateSystems/srv-rs/workflows/Rust/badge.svg?event=push)](https://github.com/DeterminateSystems/srv-rs/actions)
-[![Crate](https://img.shields.io/crates/v/srv-rs-upd.svg)](https://crates.io/crates/srv-rs-upd)
+[![Test Status](https://github.com/DeterminateSystems/detsys-srv/workflows/Rust/badge.svg?event=push)](https://github.com/DeterminateSystems/detsys-srv/actions)
+[![Crate](https://img.shields.io/crates/v/detsys-srv.svg)](https://crates.io/crates/detsys-srv)
 
 Rust client for communicating with services located by DNS SRV records.
 
@@ -26,7 +26,7 @@ communicate with `test1.example.com:443` (the record with the lowest
 priority), then with the other two (in a random order, since they are of the
 same priority) should the first be unavailable.
 
-`srv-rs` handles the lookup and caching of SRV records as well as the ordered
+`detsys-srv` handles the lookup and caching of SRV records as well as the ordered
 selection of targets to use for communication with SRV-located services.
 
 [`SrvClient::new`] creates a client (that should be reused to take advantage of
@@ -38,7 +38,7 @@ first `Ok` or last `Err` it obtains.
 
 ## Alternative Resolvers and Target Selection Policies
 
-`srv-rs` provides multiple resolver backends for SRV lookup and by default uses
+`detsys-srv` provides multiple resolver backends for SRV lookup and by default uses
 a target selection policy that maintains affinity for the last target it has
 used successfully. Both of these behaviors can be changed by implementing the
 [`SrvResolver`] and [`Policy`] traits, respectively.

@@ -1,7 +1,7 @@
 # {{crate}}
 
-[![Test Status](https://github.com/DeterminateSystems/srv-rs/workflows/Rust/badge.svg?event=push)](https://github.com/DeterminateSystems/srv-rs/actions)
-[![Crate](https://img.shields.io/crates/v/srv-rs-upd.svg)](https://crates.io/crates/srv-rs-upd)
+[![Test Status](https://github.com/DeterminateSystems/detsys-srv/workflows/Rust/badge.svg?event=push)](https://github.com/DeterminateSystems/detsys-srv/actions)
+[![Crate](https://img.shields.io/crates/v/detsys-srv.svg)](https://crates.io/crates/detsys-srv)
 
 {{readme}}
 

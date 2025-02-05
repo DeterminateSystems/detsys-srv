@@ -1,5 +1,5 @@
 {
-  description = "srv-rs-upd";
+  description = "detsys-srv";
 
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1.590113.tar.gz";
@@ -53,7 +53,7 @@
           toolchain = fenixToolchain system;
         in {
           default = pkgs.mkShell {
-            name = "srv-rs-upd-shell";
+            name = "detsys-srv-shell";
 
             RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";
 
@@ -71,9 +71,5 @@
             ];
           };
         });
-
-      packages = forAllSystems ({ system, pkgs, ... }: {
-        default = pkgs.srv-rs-upd;
-      });
     };
 }

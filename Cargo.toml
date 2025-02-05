@@ -1,5 +1,5 @@
 [package]
-name = "srv-rs-upd"
+name = "detsys-srv"
 version = "0.2.0"
 authors = ["Determinate Systems, Inc. <hello@determinate.systems>"]
 edition = "2021"
