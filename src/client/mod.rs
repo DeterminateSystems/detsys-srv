@@ -204,7 +204,7 @@ impl<Resolver: SrvResolver, Policy: policy::Policy> SrvClient<Resolver, Policy> 
             Ok(c) => c,
             Err(e) => {
                 #[cfg(feature = "log")]
-                tracing::debug!(%e, "No valid cache");
+                tracing::trace!(%e, "No valid cache");
                 return func(self.fallback.clone()).await;
             }
         };
@@ -218,13 +218,13 @@ impl<Resolver: SrvResolver, Policy: policy::Policy> SrvClient<Resolver, Policy> 
             match func(candidate.to_owned()).await {
                 Ok(res) => {
                     #[cfg(feature = "log")]
-                    tracing::info!(URI = %candidate, "execution attempt succeeded");
+                    tracing::trace!(URI = %candidate, "execution attempt succeeded");
                     self.policy.note_success(candidate);
                     return Ok(res);
                 }
                 Err(err) => {
                     #[cfg(feature = "log")]
-                    tracing::info!(URI = %candidate, error = %err, "execution attempt failed");
+                    tracing::trace!(URI = %candidate, error = %err, "execution attempt failed");
                     self.policy.note_failure(candidate);
                 }
             }
