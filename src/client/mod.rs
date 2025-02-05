@@ -150,20 +150,23 @@ impl<Resolver: SrvResolver, Policy: policy::Policy> SrvClient<Resolver, Policy> 
             uri_iter
                 .filter(|record| {
                     let allow = match record.host() {
-                    None => false,
-                    Some(Host::Ipv4(ip)) => allowed_ipv4.contains(&&ip),
-                    Some(Host::Ipv6(ip)) => allowed_ipv6.contains(&&ip),
-                    Some(Host::Domain(candidate)) => allowed_domains
-                        .iter()
-                        .any(|allowed| candidate.ends_with(allowed)),
-                };
+                        None => false,
+                        Some(Host::Ipv4(ip)) => allowed_ipv4.contains(&&ip),
+                        Some(Host::Ipv6(ip)) => allowed_ipv6.contains(&&ip),
+                        Some(Host::Domain(candidate)) => allowed_domains
+                            .iter()
+                            .any(|allowed| candidate.ends_with(allowed)),
+                    };
 
-                if !allow {
-                    tracing::trace!(%record, "Rejecting SRV record because it is not allowed by the allowed suffixes");
-                }
+                    if !allow {
+                        tracing::trace!(
+                            %record,
+                            "Rejecting SRV record because it is not allowed by the allowed suffixes"
+                        );
+                    }
 
-                allow
-        })
+                    allow
+                })
                 .collect::<Vec<Url>>()
         } else {
             uri_iter.collect::<Vec<Url>>()
