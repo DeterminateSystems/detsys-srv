@@ -1,5 +1,5 @@
 {
-  description = "Determinate Nixd";
+  description = "srv-rs-upd";
 
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1.590113.tar.gz";
