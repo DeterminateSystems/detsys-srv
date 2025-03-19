@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use rand::Rng;
 use std::time::Instant;
 
-mod trust_dns;
+mod hickory;
 
 /// Represents the ability to act as a SRV resolver.
 #[async_trait]

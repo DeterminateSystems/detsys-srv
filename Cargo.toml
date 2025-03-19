@@ -1,6 +1,6 @@
 [package]
 name = "detsys-srv"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Determinate Systems, Inc. <hello@determinate.systems>"]
 edition = "2021"
 description = "Rust client for communicating with SRV-located services"
@@ -21,7 +21,7 @@ http = "1.2"
 rand = "0.9"
 thiserror = "2.0"
 tracing = { version = "0.1" }
-trust-dns-resolver = { version = "0.23" }
+hickory-resolver = { version = "0.25" }
 url = "2.5.4"
 
 [dev-dependencies]
