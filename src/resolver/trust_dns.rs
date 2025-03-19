@@ -1,13 +1,12 @@
-//! SRV resolver backed by [`trust_dns_resolver`].
+//! SRV resolver backed by [`hickory_resolver`].
 
 use super::SrvResolver;
 use crate::SrvRecord;
 use async_trait::async_trait;
-use std::time::Instant;
-use trust_dns_resolver::{
-    error::ResolveError, name_server::ConnectionProvider, proto::rr::rdata::SRV, AsyncResolver,
-    Name,
+use hickory_resolver::{
+    name_server::ConnectionProvider, proto::rr::rdata::SRV, AsyncResolver, Name, ResolveError,
 };
+use std::time::Instant;
 
 #[async_trait]
 impl<P> SrvResolver for AsyncResolver<P>
