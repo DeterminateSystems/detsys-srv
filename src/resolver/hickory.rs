@@ -4,13 +4,12 @@ use super::SrvResolver;
 use crate::SrvRecord;
 use async_trait::async_trait;
 use hickory_resolver::{
-    error::ResolveError, name_server::ConnectionProvider, proto::rr::rdata::SRV, AsyncResolver,
-    Name,
+    name_server::ConnectionProvider, proto::rr::rdata::SRV, Name, ResolveError, Resolver,
 };
 use std::time::Instant;
 
 #[async_trait]
-impl<P> SrvResolver for AsyncResolver<P>
+impl<P> SrvResolver for Resolver<P>
 where
     P: ConnectionProvider,
 {
