@@ -21,7 +21,7 @@ http = "1.2"
 rand = "0.9"
 thiserror = "2.0"
 tracing = { version = "0.1" }
-hickory-resolver = { version = "0.25" }
+hickory-resolver = { version = "0.24" }
 url = "2.5.4"
 
 [dev-dependencies]

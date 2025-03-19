@@ -4,7 +4,8 @@ use super::SrvResolver;
 use crate::SrvRecord;
 use async_trait::async_trait;
 use hickory_resolver::{
-    name_server::ConnectionProvider, proto::rr::rdata::SRV, AsyncResolver, Name, ResolveError,
+    error::ResolveError, name_server::ConnectionProvider, proto::rr::rdata::SRV, AsyncResolver,
+    Name,
 };
 use std::time::Instant;
 
