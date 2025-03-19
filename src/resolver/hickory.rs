@@ -59,7 +59,8 @@ mod tests {
 
     #[tokio::test]
     async fn srv_lookup() -> Result<(), ResolveError> {
-        let (records, _) = AsyncResolver::tokio_from_system_conf()?
+        let (records, _) = Resolver::builder_tokio()?
+            .build()
             .get_srv_records_unordered(EXAMPLE_SRV)
             .await?;
         assert_ne!(records.len(), 0);
@@ -68,7 +69,8 @@ mod tests {
 
     #[tokio::test]
     async fn srv_lookup_ordered() -> Result<(), ResolveError> {
-        let (records, _) = AsyncResolver::tokio_from_system_conf()?
+        let (records, _) = Resolver::builder_tokio()?
+            .build()
             .get_srv_records(EXAMPLE_SRV)
             .await?;
         assert_ne!(records.len(), 0);
@@ -78,7 +80,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_fresh_uris() -> Result<(), ResolveError> {
-        let resolver = AsyncResolver::tokio_from_system_conf()?;
+        let resolver = Resolver::builder_tokio()?.build();
         let client = crate::SrvClient::<_>::new_with_resolver(
             EXAMPLE_SRV,
             example_fallback(),
@@ -92,8 +94,9 @@ mod tests {
 
     #[tokio::test]
     async fn invalid_host() {
-        AsyncResolver::tokio_from_system_conf()
+        Resolver::builder_tokio()
             .unwrap()
+            .build()
             .get_srv_records("_http._tcp.foobar.deshaw.com")
             .await
             .unwrap_err();
@@ -101,8 +104,9 @@ mod tests {
 
     #[tokio::test]
     async fn malformed_srv_name() {
-        AsyncResolver::tokio_from_system_conf()
+        Resolver::builder_tokio()
             .unwrap()
+            .build()
             .get_srv_records("_http.foobar.deshaw.com")
             .await
             .unwrap_err();
@@ -110,8 +114,9 @@ mod tests {
 
     #[tokio::test]
     async fn very_malformed_srv_name() {
-        AsyncResolver::tokio_from_system_conf()
+        Resolver::builder_tokio()
             .unwrap()
+            .build()
             .get_srv_records("  @#*^[_hsd flt.com")
             .await
             .unwrap_err();
@@ -119,8 +124,9 @@ mod tests {
 
     #[tokio::test]
     async fn srv_name_containing_nul_terminator() {
-        AsyncResolver::tokio_from_system_conf()
+        Resolver::builder_tokio()
             .unwrap()
+            .build()
             .get_srv_records("_http.\0_tcp.foo.com")
             .await
             .unwrap_err();
