@@ -4,7 +4,9 @@ use super::SrvResolver;
 use crate::SrvRecord;
 use async_trait::async_trait;
 use hickory_resolver::{
-    name_server::ConnectionProvider, proto::rr::rdata::SRV, Name, ResolveError, Resolver,
+    net::NetError,
+    proto::rr::{rdata::SRV, Name, RData},
+    ConnectionProvider, Resolver,
 };
 use std::time::Instant;
 
@@ -14,15 +16,23 @@ where
     P: ConnectionProvider,
 {
     type Record = SRV;
-    type Error = ResolveError;
+    type Error = NetError;
 
     async fn get_srv_records_unordered(
         &self,
         srv: &str,
     ) -> Result<(Vec<Self::Record>, Instant), Self::Error> {
         let lookup = self.srv_lookup(srv).await?;
-        let valid_until = lookup.as_lookup().valid_until();
-        Ok((lookup.into_iter().collect(), valid_until))
+        let valid_until = lookup.valid_until();
+        let records = lookup
+            .answers()
+            .iter()
+            .filter_map(|record| match &record.data {
+                RData::SRV(srv) => Some(srv.clone()),
+                _ => None,
+            })
+            .collect();
+        Ok((records, valid_until))
     }
 }
 
@@ -30,19 +40,19 @@ impl SrvRecord for SRV {
     type Target = Name;
 
     fn target(&self) -> &Self::Target {
-        self.target()
+        &self.target
     }
 
     fn port(&self) -> u16 {
-        self.port()
+        self.port
     }
 
     fn priority(&self) -> u16 {
-        self.priority()
+        self.priority
     }
 
     fn weight(&self) -> u16 {
-        self.weight()
+        self.weight
     }
 }
 
@@ -58,9 +68,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn srv_lookup() -> Result<(), ResolveError> {
+    async fn srv_lookup() -> Result<(), NetError> {
         let (records, _) = Resolver::builder_tokio()?
-            .build()
+            .build()?
             .get_srv_records_unordered(EXAMPLE_SRV)
             .await?;
         assert_ne!(records.len(), 0);
@@ -68,9 +78,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn srv_lookup_ordered() -> Result<(), ResolveError> {
+    async fn srv_lookup_ordered() -> Result<(), NetError> {
         let (records, _) = Resolver::builder_tokio()?
-            .build()
+            .build()?
             .get_srv_records(EXAMPLE_SRV)
             .await?;
         assert_ne!(records.len(), 0);
@@ -79,8 +89,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_fresh_uris() -> Result<(), ResolveError> {
-        let resolver = Resolver::builder_tokio()?.build();
+    async fn get_fresh_uris() -> Result<(), NetError> {
+        let resolver = Resolver::builder_tokio()?.build()?;
         let client = crate::SrvClient::<_>::new_with_resolver(
             EXAMPLE_SRV,
             example_fallback(),
@@ -97,6 +107,7 @@ mod tests {
         Resolver::builder_tokio()
             .unwrap()
             .build()
+            .unwrap()
             .get_srv_records("_http._tcp.foobar.deshaw.com")
             .await
             .unwrap_err();
@@ -107,6 +118,7 @@ mod tests {
         Resolver::builder_tokio()
             .unwrap()
             .build()
+            .unwrap()
             .get_srv_records("_http.foobar.deshaw.com")
             .await
             .unwrap_err();
@@ -117,6 +129,7 @@ mod tests {
         Resolver::builder_tokio()
             .unwrap()
             .build()
+            .unwrap()
             .get_srv_records("  @#*^[_hsd flt.com")
             .await
             .unwrap_err();
@@ -127,6 +140,7 @@ mod tests {
         Resolver::builder_tokio()
             .unwrap()
             .build()
+            .unwrap()
             .get_srv_records("_http.\0_tcp.foo.com")
             .await
             .unwrap_err();
